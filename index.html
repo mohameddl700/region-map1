@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>خريطة المدن حسب الـ Region</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+  <style>
+    #map { height: 600px; width: 100%; }
+    .info-box { margin-top: 10px; font-size: 1.2em; }
+  </style>
+</head>
+<body>
+  <h2>خريطة المدن حسب الـ Region</h2>
+  <input type="text" id="address" placeholder="اكتب العنوان هنا" style="width: 300px; padding: 5px;">
+  <button onclick="geocodeAddress()">اقتراح الـ Region</button>
+  <div class="info-box" id="result"></div>
+  <div id="map"></div>
+
+  <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+  <script>
+    const cities = [
+      { city: "10th of Ramdan City", region: "Al Sharqia", lat: 30.306, lng: 31.741 },
+      { city: "6th of October", region: "Giza", lat: 29.976, lng: 30.956 },
+      { city: "Abnoub", region: "Asyut", lat: 27.267, lng: 31.151 },
+      { city: "Abo Sultan", region: "Ismailia", lat: 30.200, lng: 32.300 },
+      { city: "Abo-Korkas", region: "Al Meniya", lat: 27.930, lng: 30.843 }
+    ];
+
+    const regionColors = {
+      "Al Sharqia": "red",
+      "Giza": "blue",
+      "Asyut": "green",
+      "Ismailia": "orange",
+      "Al Meniya": "purple"
+    };
+
+    const map = L.map('map').setView([30.0, 31.0], 6);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 18,
+    }).addTo(map);
+
+    cities.forEach(({ city, region, lat, lng }) => {
+      const color = regionColors[region] || 'gray';
+      L.circleMarker([lat, lng], {
+        radius: 8,
+        color,
+        fillColor: color,
+        fillOpacity: 0.7
+      }).addTo(map).bindPopup(`<strong>${city}</strong><br>${region}`);
+    });
+
+    function geocodeAddress() {
+      const input = document.getElementById('address').value;
+      const resultBox = document.getElementById('result');
+
+      fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(input)}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data && data.length > 0) {
+            const userLat = parseFloat(data[0].lat);
+            const userLng = parseFloat(data[0].lon);
+
+            map.setView([userLat, userLng], 12);
+            L.marker([userLat, userLng]).addTo(map).bindPopup("عنوانك").openPopup();
+
+            // اقرب مدينة بناء على المسافة
+            let closestCity = null;
+            let minDist = Infinity;
+            cities.forEach(city => {
+              const dist = Math.sqrt(Math.pow(userLat - city.lat, 2) + Math.pow(userLng - city.lng, 2));
+              if (dist < minDist) {
+                minDist = dist;
+                closestCity = city;
+              }
+            });
+
+            if (closestCity) {
+              resultBox.innerHTML = `أقرب مدينة: <strong>${closestCity.city}</strong><br>الـRegion: <strong>${closestCity.region}</strong>`;
+            } else {
+              resultBox.innerHTML = "لم يتم العثور على مدينة قريبة.";
+            }
+          } else {
+            resultBox.innerHTML = "لم يتم العثور على عنوان. تأكد من صحة الإدخال.";
+          }
+        })
+        .catch(err => {
+          resultBox.innerHTML = "حدث خطأ أثناء البحث عن العنوان.";
+        });
+    }
+  </script>
+</body>
+</html>
